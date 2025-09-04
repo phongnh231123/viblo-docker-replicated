@@ -1,0 +1,51 @@
+name: My Jobs
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: npm install
+      - name: Build App
+        run: npm run build
+
+  tests:
+    runs-on: [self-hosted]
+    strategy:
+      matrix:
+        task: [lint, test, test:cov, test:e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: npm install
+      - name: Run ${{ matrix.task }}
+        run: npm run ${{ matrix.task }}
+
+  build_image:
+    runs-on: [self-hosted]
+    needs: [build, tests]   # chỉ build image khi build & tests xong
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t my-app .
